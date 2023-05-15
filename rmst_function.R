@@ -170,8 +170,7 @@ rmst <- function(time, status, group, weight=NULL, tau=NULL, alpha=.05, plot=TRU
 # Status is 0 if censored, 1 if event
 # Group should be a factor variable
 # Weights can be obtained separately, ie through logistic models
-# Tau is a user-specified truncation point. 
-# If not specified, the default will be the minimum of the each groups' last event time 
+# Tau is an optional timepoint to add a vertical line (i.e. restriction timepoint of RMST)
 
 ipw.km <- function(time, status, group, weight=NULL, tau=NULL, xaxismin=0, xaxismax=max(time), ...){
     if(sum(time<0)>0){print("Error: times must be positive.")
