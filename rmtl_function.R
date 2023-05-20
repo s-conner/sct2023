@@ -1,10 +1,11 @@
 
-### Function to estimate the unadjusted or IPW-adjusted RMTL
+### Functions to estimate the unadjusted or IPW-adjusted RMTL
 ### Null weights yields the unadjusted RMTL
 ### Sarah Conner, Updated September 30 2020
 
 library(survival)
 
+# Restricted time lost
 
 rmtl <- function(times, event, eoi=1, group=NULL, weight=NULL, tau=NULL, alpha=.05, entry=NULL, plot=TRUE, ...){  
   
@@ -223,5 +224,77 @@ rmtl <- function(times, event, eoi=1, group=NULL, weight=NULL, tau=NULL, alpha=.
     }
   }
 }
+
+
+
+# IPW CIF
+ipw.cif <- function(times, event, eoi=1, group=NULL, weight=NULL, tau=NULL, entry=NULL, main='', xaxismin=0, xaxismax=max(times), ...){  
+  
+  if(sum(times<0)>0){print("Error: times must be positive.")
+  }else{
+    
+    #--- Prep input data ---
+    
+    if(is.null(entry)){entry <- rep(0, length(times))}
+    if(is.null(group)){group <- as.factor(rep(1, length(times)))}
+    if(is.null(weight)){weight <- rep(1, length(times))}
+    alldat <- data.frame(entry, times, event, group, weight)
+    alldat <- alldat[!is.na(alldat$group) & !is.na(alldat$times),]
+    alldat <- alldat[order(group),] 
+    
+    gg <- length(levels(alldat$group))
+
+      
+      #--- Proceed with CIF ----
+      
+    if(!is.null(tau)){
+      alldat$event[alldat$times>tau] <- 0
+      alldat$times[alldat$times>tau] <- tau
+    }
+  
+    groupval <- rep(NA, length(1:gg))
+    
+    plot(NULL, xlim=c(xaxismin, xaxismax), ylim=c(0,1), xlab='Time', ylab='Cumulative incidence', main=main)
+    
+    for (g in 1:gg){
+      
+      #--- Derive CIF and related quantities (theta, hazards, etc) ---
+      
+      groupval[g] <- (levels(alldat$group)[g])
+      data <- alldat[which(alldat$group==(groupval[g])),]
+      
+      tj <- data$times[data$event!=0]
+      tj <- unique(tj[order(tj)])
+      num.tj <- length(tj)
+      
+      num.atrisk <- sapply(tj, function(x) sum(data$weight[data$entry<x & data$times>=x]))
+      num.ev1 <- sapply(tj, function(x) sum(data$weight[data$event==eoi & data$times==x]))
+      num.ev2 <- sapply(tj, function(x) sum(data$weight[data$event!=eoi & data$event!=0 & data$times==x]))
+      num.ev <- num.ev1 + num.ev2
+      
+      m <- sapply(tj, function(x){sum((data$weight[data$entry<x & data$times>=x])^2)})
+      mg <- ((num.atrisk^2)/m)
+      
+      h1 <- num.ev1/num.atrisk
+      h <- num.ev/num.atrisk
+      
+      s <- cumprod(c(1, 1 - h))
+      s <- s[1:length(s)-1]
+      
+      theta <- s * h1
+      cif1 <- cumsum(theta)
+      lines(c(tj, tau), c(cif1, cif1[num.tj]), type="s", col=g, lwd=2)
+    }
+    
+    
+    #--- Add legend and tau to plot ---
+
+    if(!is.null(tau)){abline(v=tau, col=1, lty=3, lwd=2)}
+    if(gg>1){
+      legend('topleft', groupval, lty=rep(1, gg), lwd=rep(2, gg), col=1:gg, cex=.75, bty ="n")
+    }
+  }
+}
+
 
 
